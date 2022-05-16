@@ -1,0 +1,2 @@
+web: node client/src/index.tsx
+api: node server/app.ts
