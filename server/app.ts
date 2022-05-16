@@ -5,7 +5,8 @@ import cors from "cors"
 import express from 'express';
 import session from "express-session";
 import configRoutes from "./routes";
-import xss from "xss";
+// import xss from "xss";
+import path from "path";
 const regex = "^\/users(\/login|\/signup)?(\/)?$";
 let shouldAuthenticate = true;
 const app = express();
@@ -19,6 +20,10 @@ app.use(session({
     resave: false,
     saveUninitialized: true
 }))
+
+
+app.use(express.static(path.join(__dirname, 'build')));
+
 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "http://localhost:3000");
