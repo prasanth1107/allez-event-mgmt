@@ -1,5 +1,5 @@
 import express from 'express';
-
+import { ObjectId } from 'mongodb';
 import firestoreDb from "../app";
 import { User } from '../models/user.model';
 import bcrypt from "bcrypt";
@@ -21,9 +21,10 @@ router.get("/logout", async(req, res) => {
     }
 })
 
-router.get("/", async(req, res) => {
+router.get("/:userId", async(req, res) => {
     try{
-        let id: string = xss(req.session.userId);
+        if (!ObjectId.isValid(req.params.userId.toString())) throw [400, "Bad Parameters, Invalid user ID"]
+        let id: string = xss(req.params.userId);
         let getUserDetails = await usersData.getUser(id);
         console.log(getUserDetails);
         res.status(200).json({ "success": true, "result": getUserDetails });

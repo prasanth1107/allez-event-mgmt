@@ -1,11 +1,11 @@
 import express, { query } from 'express';
 import nodemail from "../nodemail";
+const mongoose = require('mongoose')
 import multer, { FileFilterCallback } from "multer"
 import { Request, Response } from 'express';
 import { Event } from '../models/events.model';
 import { connectDB } from "../config/mongoConnection";
-import { GridFSBucket, GridFSFile, GridFSBucketReadStream } from "mongodb";
-import { ObjectId } from "mongodb";
+import { ObjectId, GridFSBucket, GridFSFile, GridFSBucketReadStream, MongoClient, ServerApiVersion, Db } from "mongodb";
 import { GridFile, GridFsStorage, UrlStorageOptions } from 'multer-gridfs-storage'
 const router = express.Router();
 import data from "../data";
@@ -22,8 +22,12 @@ const xss = require('xss');
 type DestinationCallback = (error: Error | null, destination: string) => void
 type FileNameCallback = (error: Error | null, filename: string) => void
 
+const client = new MongoClient(config.uri!)
+client.connect()
+const conn = connectDB()
+
 const fileStorageEngine = new GridFsStorage({
-    url: config.uri!,
+    db: conn,
     file: (req, file) => {
         return {
             bucketName: config.IMAGE_BUCKET,
@@ -34,13 +38,12 @@ const fileStorageEngine = new GridFsStorage({
 
 const upload = multer({ storage: fileStorageEngine });
 
-
 router.post('/create', upload.any(), async (req, res) => {
-
-
     // http://localhost:4000/events/create
-    let obj: Event = req.body;
-    if (req.session.userId) obj.hostId = req.session.userId?.toString();
+    let obj = req.body;
+    let venue = JSON.parse(obj.venue)
+
+    let event: Event = convertBodyToEvent(obj)
     let imgArr: string[] = []
     if (req.files) {
         let inputFiles: { [fieldname: string]: Express.Multer.File[]; } | Express.Multer.File[] = req.files;
@@ -49,14 +52,14 @@ router.post('/create', upload.any(), async (req, res) => {
                 imgArr.push(inputFiles[index].id.toString());
         }
     }
-    console.log(imgArr)
-    obj.eventImgs = imgArr
+
+    event.eventImgs = imgArr
     // console.log(obj)
     try {
         if (req.session.userId) {
-            obj = validateEvent(obj)
-            obj.hostId = xss(req.session.userId);
-            let addEvent = await eventsData.createEvent(obj)
+            event = validateEvent(event)
+            event.hostId = xss(req.session.userId);
+            let addEvent = await eventsData.createEvent(event)
             let addEventInUserCollection = await usersData.addHostedEvent(xss(req.session.userId), xss(addEvent._id.toString()));
             res.status(200).json({ "success": true, "result": addEvent, "hostName": req.session.userName })
         }
@@ -101,8 +104,8 @@ router.get('/event', async (req, res) => {
             // if(!ObjectId.isValid(eventId)) throw [400, "Event ID Is Invalid"]
             if (obj.eventId) {
                 if (!ObjectId.isValid(obj.eventId.toString())) throw [400, "Event ID Is Invalid"]
-                    getAttendees = await eventsData.getAttendees(obj.eventId.toString())
-                    getCohosts = await eventsData.getCohosts(obj.eventId.toString())
+                getAttendees = await eventsData.getAttendees(obj.eventId.toString())
+                getCohosts = await eventsData.getCohosts(obj.eventId.toString())
             }
             if (obj.hostId) {
                 if (!ObjectId.isValid(obj.hostId.toString())) throw [400, "Host ID Is Invalid"]
@@ -130,8 +133,8 @@ router.get('/free', async (req, res) => {
     }
 });
 
-router.post('/event/register/paymentsession/:eventid/:userid', async(req,res) => {
-    try{
+router.post('/event/register/paymentsession/:eventid/:userid', async (req, res) => {
+    try {
         if (!ObjectId.isValid(req.params.eventid.toString())) throw [400, "Event ID Is Invalid"]
         if (!ObjectId.isValid(req.params.userid.toString())) throw [400, "User ID Is Invalid"]
 
@@ -140,8 +143,8 @@ router.post('/event/register/paymentsession/:eventid/:userid', async(req,res) =>
         let newUserid = xss(req.params.userid.trim());
 
         let createPaymentSession = await paymentsData.createSession(eventId, newUserid);
-        if(createPaymentSession) return res.status(200).json({"result": createPaymentSession});
-    }catch(e){
+        if (createPaymentSession) return res.status(200).json({ "result": createPaymentSession });
+    } catch (e) {
 
     }
 })
@@ -329,10 +332,38 @@ router.delete('/event/:eventid', async function (req, res) {
         res.status(e[0]).json({ "success": false, "result": e[1] })
     }
 });
+function convertBodyToEvent(obj: any) {
+    let venue: venue = JSON.parse(obj.venue)
+    let event: Event =
+    {
 
+        //eventId ?: ObjectId | string,
+        eventImgs: [],
+        name: obj.name,
+        category: JSON.parse(obj.category),
+        price: JSON.parse(obj.price),
+        description: obj.description,
+        totalSeats: JSON.parse(obj.totalSeats),
+        bookedSeats: JSON.parse(obj.bookedSeats),
+        minAge: JSON.parse(obj.minAge),
+        hostId: '',
+        cohostArr: [],
+        attendeesArr: [],
+        venue: {
+            address: venue.address,
+            city: venue.city,
+            state: venue.state,
+            zip: venue.zip,
+            geoLocation: { lat: venue.geoLocation.lat, long: venue.geoLocation.long }
+        },
+        eventTimeStamp: obj.eventTimeStamp
+    }
+
+    return event
+}
 function validateEvent(obj: Event) {
     if (typeof (obj.name) != 'string' || typeof (obj.venue.address) != 'string' || typeof (obj.venue.city) != 'string' ||
-        typeof (obj.venue.state) != 'string' || typeof (obj.venue.city) != 'string' || typeof(obj.venue.zip)!='string'
+        typeof (obj.venue.state) != 'string' || typeof (obj.venue.city) != 'string' || typeof (obj.venue.zip) != 'string'
     ) throw [400, "Event Details Mgiht Not Be String Where Expected"]
 
     if (!obj.name.trim() || !obj.venue.address.trim() || !obj.venue.city.trim() || !obj.venue.state.trim() ||
@@ -358,4 +389,15 @@ function validateEvent(obj: Event) {
     obj.venue.geoLocation.long = xss(Number(obj.venue.geoLocation.long))
     obj.eventTimeStamp = xss(obj.eventTimeStamp);
     return obj;
+}
+
+type venue = {
+    address: string,
+    city: string,
+    state: string,
+    zip: string,
+    geoLocation: {
+        lat: number,
+        long: number
+    }
 }

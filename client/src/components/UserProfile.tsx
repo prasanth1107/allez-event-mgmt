@@ -3,13 +3,14 @@ import { useParams } from 'react-router-dom';
 import Event from '../models/events.model'
 import User from '../models/user.model';
 import AdminConsole from './AdminConsole';
+import { Link } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 
 import axios from 'axios'
 
 const UserProfile = () => {
 
-    let id = "627f543ee81f04fe77ae41db"
+    let id = useParams().userId!
     const [user, setUser] = useState<User>()
 
     useEffect(() => {
@@ -18,7 +19,7 @@ const UserProfile = () => {
             console.log(id)
 
             // fetch user details
-            await axios.get(`http://localhost:4000/users/`, {
+            await axios.get(`http://localhost:4000/users/${id}`, {
                 method: "get", withCredentials: true
             }).then(({ data }) => {
                 setUser(data.result)
@@ -27,7 +28,7 @@ const UserProfile = () => {
             }
             )
         }
-       
+
         // hostArray = 
         console.log('inside use effect')
         fetchEventDetails()
@@ -36,13 +37,17 @@ const UserProfile = () => {
     return (
         <div>
             <div>
-                <h1>User Profile Page</h1>
-                <h2>Name: {user?.name}</h2>
-                <h2>Email: {user?.email}</h2>
-                <h2>Gender: {user?.gender}</h2>
-                <h2>Phone: {user?.phone}</h2>
+                <div>
+                    <h2>Name: {user?.name}</h2>
+                    <h2>Email: {user?.email}</h2>
+                    <h2>Gender: {user?.gender}</h2>
+                    <h2>Phone: {user?.phone}</h2>
+                </div>
+                {(user?._id === window.sessionStorage.getItem('userId')) && <div>
+                    <Link className="px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700" to={`/users/${user?._id}`}> Edit</Link>
+                </div>}
             </div>
-            <AdminConsole id = {user?._id!}/>
+            <AdminConsole id={user?._id!} />
             <ToastContainer />
         </div>
     )

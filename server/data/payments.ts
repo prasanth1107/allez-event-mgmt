@@ -74,7 +74,7 @@ type Card = {
 async function addEvent(event: Event): Promise<boolean> {
     
     if((!event) ||(event._id === undefined) || (!event.name || event.name.trim().length === 0) || (!event.description || event.description.trim().length === 0)
-        || (event.category.length === 0) || (!event.totalSeats || event.totalSeats === 0) || (event.hostId === undefined) || (!event.minAge)) {
+        || (event.category.length === 0) || (!event.totalSeats || event.totalSeats === 0) || (event.hostId === undefined)) {
             throw [400, "Bad Request, Insufficient parameters sent."];
     }
     else {   
@@ -176,8 +176,8 @@ async function removeEvent(eventID: string): Promise<Stripe.Response<Stripe.Prod
 }
 
 async function addEventRegFee(eventID: string, price: number) {
-    if(!eventID || !price) {
-        throw [400, "Bad Parameters, Please enter a valid event ID and price"]
+    if(!eventID) {
+        throw [400, "Bad Parameters, Please enter a valid event ID"]
     }
     else {
         let event = await stripe.products.retrieve(eventID);
@@ -200,8 +200,8 @@ async function addEventRegFee(eventID: string, price: number) {
 }
 
 async function updateEventRegFee(eventID: string, price: number) {
-    if(!eventID || !price) {
-        throw [400, "Bad Parameters, Please enter a valid event ID and price"]
+    if(!eventID) {
+        throw [400, "Bad Parameters, Please enter a valid event ID"]
     }
     else {
         let event = await stripe.products.retrieve(eventID);
@@ -237,7 +237,7 @@ async function updateEventRegFee(eventID: string, price: number) {
 
 async function getEventPrice(eventId: string) {
     if(!eventId) {
-        throw [400, "Bad Parameters, Please enter a valid event ID and price"]
+        throw [400, "Bad Parameters, Please enter a valid event ID"]
     }
     else {
         let event = await stripe.products.retrieve(eventId);

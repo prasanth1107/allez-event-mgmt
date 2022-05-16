@@ -29,6 +29,18 @@ type newEventData = {
     
 }
 
+type venue = {
+    address: string,
+    city: string,
+    state: string,
+    zip: string,
+    geoLocation: {
+        lat: number,
+        long: number
+    }
+}
+
+
 type LatLng = google.maps.LatLngLiteral;
 type GeocodeResult = google.maps.GeocoderResult[];
 
@@ -104,29 +116,55 @@ const NewEvent: React.FC<EventProps> = ({type}) => {
     const onSubmit: SubmitHandler<newEventData> = async data => {
         let { zipCode, venueCoord } = await getGCAndZip(venue);
         let eventVenue: string[] = venue.split(",");
-        let newEvent: Event = {
-            name: data.name,
-            category: data.category,
-            price: data.price,
-            description: data.description,
-            totalSeats: data.totalSeats,
-            bookedSeats: 0,
-            minAge: data.minAge || 0,
-            venue: {
-                address: eventVenue[0],
-                city: eventVenue[1],
-                state: eventVenue[2],
-                zip: zipCode,
-                geoLocation: {
-                    lat: venueCoord?.lat!,
-                    long: venueCoord?.lng!
-                }
-            },
-            eventTimeStamp: data.eventTimeStamp,
-            eventImgs: eventImages
+
+        let venueType:venue = {
+            address: eventVenue[0],
+            city: eventVenue[1],
+            state: eventVenue[2],
+            zip: zipCode,
+            geoLocation: {
+                lat: venueCoord?.lat!,
+                long: venueCoord?.lng!
+            }
         }
-        console.log(newEvent);
-        let createdEvent = await axios.post("http://localhost:4000/events/create", newEvent, {withCredentials: true});
+
+        let formData = new FormData()
+        formData.append("name", data.name)
+        formData.append("category", JSON.stringify(data.category))
+        formData.append("price", JSON.stringify(data.price))
+        formData.append("description", data.description)
+        formData.append("totalSeats", JSON.stringify(data.totalSeats))
+        formData.append("bookedSeats", '0')
+        formData.append("minAge", JSON.stringify(data.minAge) || '0')
+        formData.append("venue", JSON.stringify(venueType))
+        formData.append("eventTimeStamp", data.eventTimeStamp)
+
+        eventImages.map(file => {
+            formData.append('images', file, file.name)
+        })
+
+        // let newEvent: Event = {
+        //     name: data.name,
+        //     category: data.category,
+        //     price: data.price,
+        //     description: data.description,
+        //     totalSeats: data.totalSeats,
+        //     bookedSeats: 0,
+        //     minAge: data.minAge || 0,
+        //     venue: {
+        //         address: eventVenue[0],
+        //         city: eventVenue[1],
+        //         state: eventVenue[2],
+        //         zip: zipCode,
+        //         geoLocation: {
+        //             lat: venueCoord?.lat!,
+        //             long: venueCoord?.lng!
+        //         }
+        //     },
+        //     eventTimeStamp: data.eventTimeStamp,
+        //     eventImgs: eventImages
+        // }
+        let createdEvent = await axios("http://localhost:4000/events/create", { method: "post", data: formData, withCredentials: true });
         console.log(createdEvent);
     };
     const { isLoaded } = useJsApiLoader({
