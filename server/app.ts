@@ -6,6 +6,7 @@ import express from 'express';
 import session from "express-session";
 import configRoutes from "./routes";
 import xss from "xss";
+import path from "path";
 const regex = "^\/users(\/login|\/signup)?(\/)?$";
 let shouldAuthenticate = true;
 const app = express();
@@ -20,6 +21,8 @@ app.use(session({
     saveUninitialized: true,
     cookie: { maxAge: 5000 }
 }))
+
+app.use(express.static(path.join(__dirname, 'build')));
 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "http://localhost:3000");
@@ -42,6 +45,16 @@ app.post(regex, (req, res, next) => {
     shouldAuthenticate = false;
     next();
 });
+
+app.post('/webhook', (request, response) => {
+    const payload = request.body;
+
+    console.log("Got payload: " + payload);
+
+    response.status(200);
+  });
+
+  
 app.use('*', (req, res, next) => {
     if(shouldAuthenticate && !req.session.userId)
         return res.status(401).json({ "success": false, "result": 'user must be logged in.'});
@@ -69,7 +82,13 @@ const firebaseConfig = {
     appId: "1:491306185561:web:78fbfcb2570c17c1659248",
     measurementId: "G-2BMLN6HEX9"
   };
-const credential = {credential: keyAdmin.credential.cert(require('../firebase-private-key.json'))}; // initialize firebase
+const credential = {credential: keyAdmin.credential.cert({
+    projectId: process.env.project_id,
+    privateKey: process.env.private_key ? process.env.private_key.replace(/\\n/gm, "\n") : undefined,
+    clientEmail: process.env.client_email
+    
+
+})}; // initialize firebase
 const firebaseApp = admin.initializeApp(credential); // initialize the database and the collection
 const firestoreDb = firestore.getFirestore();
 // exports.firestoreDb = firestoreDb;
@@ -80,7 +99,7 @@ configRoutes(app);
 
 // exports.app = functions.https.onRequest(app);
 
-app.listen(4000, () => {
+app.listen(process.env.PORT || 4000, () => {
     console.log("We have now got a server");
     console.log('Your routes will be running on http://localhost:4000');
 })

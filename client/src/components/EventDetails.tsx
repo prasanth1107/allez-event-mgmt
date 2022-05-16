@@ -1,5 +1,5 @@
 import React, { ReactFragment, useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import EventModel from '../models/events.model'
 import { ToastContainer, toast } from 'react-toastify';
 import ImageGallery from 'react-image-gallery';
@@ -30,6 +30,7 @@ const EventDetails = () => {
     const [render, setRender] = useState(true);
     let id = useParams().eventId
     let userId = window.sessionStorage.getItem("userId")
+    const navigation = useNavigate();
 
     useEffect(() => {
         async function fetchEventDetails() {
@@ -71,12 +72,15 @@ const EventDetails = () => {
 
     const registerUser = async () => {
 
-        await axios(`http://localhost:4000/events/event/register/${event?._id}`, { method: "post", withCredentials: true }).then(({ data }) => {
-            // await axios(`http://localhost:4000/events/event/register/paymentsession/${event?._id}/${userId}`, { method: "post", withCredentials: true }).then(({ data }) => {                
-            let newEvent = event
-            if (userId) newEvent?.attendeesArr?.push(userId)
-            setEvent(newEvent)
-            toast.success(data.result)
+        // await axios(`http://localhost:4000/events/event/register/${event?._id}`, { method: "post", withCredentials: true }).then(({ data }) => {
+            await axios(`http://localhost:4000/events/event/register/paymentsession/${event?._id}/${userId}`, { method: "post", withCredentials: true }).then(({ data }) => {                
+                let newEvent = event
+                if (userId) newEvent?.attendeesArr?.push(userId)
+                setEvent(newEvent)
+                if(data.result) {
+                    window.location.href = data.result;
+                }
+                // toast.success(data.result)
         }).catch(({ response }) => {
             toast.error(response.data.result)
         })
